@@ -31,3 +31,5 @@ export function SearchPreview(arg1:string):Promise<main.PreviewSearchResult>;
 export function SetHyphenation(arg1:boolean):Promise<void>;
 
 export function SetMetadata(arg1:main.MetaEdit):Promise<void>;
+
+export function Version():Promise<string>;

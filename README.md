@@ -14,7 +14,7 @@
 
 Готовый `litagent.exe` для Windows — на странице релизов:
 
-### → [**Скачать последнюю версию (Releases)**](https://github.com/rahnaroker/liagent/releases/latest)
+### → [**Скачать последнюю версию (Releases)**](https://github.com/cherlx/litagent/releases/latest)
 
 1. Скачайте `litagent-vX.Y.Z-windows-amd64.zip` и распакуйте.
 2. Запустите `litagent.exe`. Папка `wallpaper/` (шаблоны обложек) лежит рядом — ничего настраивать не нужно.
@@ -158,7 +158,7 @@ Why: FB2 is the dominant Russian-language e-book format, but Kindle can't read i
 
 **Note:** input is currently **FB2**, and the typography engine targets **Russian** text. English and additional input formats (EPUB/TXT/DOCX) are on the roadmap but not yet implemented.
 
-**Download:** grab `litagent.exe` from the [Releases page](https://github.com/rahnaroker/liagent/releases/latest), unzip, and run. The binary is unsigned, so Windows SmartScreen may warn — click **"More info" → "Run anyway"**. Or build it yourself (see *Сборка* above).
+**Download:** grab `litagent.exe` from the [Releases page](https://github.com/cherlx/litagent/releases/latest), unzip, and run. The binary is unsigned, so Windows SmartScreen may warn — click **"More info" → "Run anyway"**. Or build it yourself (see *Сборка* above).
 
 </details>
 

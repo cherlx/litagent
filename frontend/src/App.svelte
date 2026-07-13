@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Open, Reload, Export, PreviewInfo, PreviewPage, SearchPreview, CoverInfo, GenerateCover, ApplyCover, ClearCover, GetMetadata, SetMetadata, CleanTitleTags, GetHyphenation, SetHyphenation } from "../wailsjs/go/main/App";
+  import { Open, Reload, Export, PreviewInfo, PreviewPage, SearchPreview, CoverInfo, GenerateCover, ApplyCover, ClearCover, GetMetadata, SetMetadata, CleanTitleTags, GetHyphenation, SetHyphenation, Version } from "../wailsjs/go/main/App";
   import { main } from "../wailsjs/go/models";
   import { onMount } from "svelte";
 
@@ -27,12 +27,18 @@
 
   let meta: main.MetaEdit | null = null;
   let allowHyphenation = false;
+  let appVersion = "";
 
   onMount(async () => {
     try {
       allowHyphenation = await GetHyphenation();
     } catch (e) {
       errorMsg = String(e);
+    }
+    try {
+      appVersion = await Version();
+    } catch (e) {
+      // non-critical: leave appVersion empty
     }
   });
 
@@ -282,7 +288,7 @@
 
 <header>
   <div class="toolbar">
-    <div class="brand">litagent</div>
+    <div class="brand">litagent{#if appVersion} <span class="ver">{appVersion}</span>{/if}</div>
     <button on:click={openFile} disabled={loading}>Открыть FB2…</button>
     <button on:click={exportEpub} disabled={loading || !result}>Собрать EPUB…</button>
     {#if result}
@@ -573,6 +579,11 @@
     font-weight: 800;
     letter-spacing: 0.5px;
     color: #6cc6ff;
+  }
+  .brand .ver {
+    font-weight: 400;
+    font-size: 0.75em;
+    color: #9fb3c8;
   }
   header .file {
     color: #9fb3c8;

@@ -45,6 +45,12 @@ type App struct {
 	previewPages []previewPage
 }
 
+// Version returns the app's build version (see the package-level `version`
+// var in main.go), e.g. "v1.0.0", or "dev" for local/unversioned builds.
+func (a *App) Version() string {
+	return version
+}
+
 // NewApp creates a new App application struct.
 func NewApp() *App { return &App{coverIdx: -1} }
 

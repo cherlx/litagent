@@ -61,3 +61,7 @@ export function SetHyphenation(arg1) {
 export function SetMetadata(arg1) {
   return window['go']['main']['App']['SetMetadata'](arg1);
 }
+
+export function Version() {
+  return window['go']['main']['App']['Version']();
+}
