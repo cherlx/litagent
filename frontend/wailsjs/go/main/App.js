@@ -26,6 +26,10 @@ export function GenerateCover(arg1) {
   return window['go']['main']['App']['GenerateCover'](arg1);
 }
 
+export function GetHyphenation() {
+  return window['go']['main']['App']['GetHyphenation']();
+}
+
 export function GetMetadata() {
   return window['go']['main']['App']['GetMetadata']();
 }
@@ -34,12 +38,24 @@ export function Open() {
   return window['go']['main']['App']['Open']();
 }
 
-export function Preview() {
-  return window['go']['main']['App']['Preview']();
+export function PreviewInfo() {
+  return window['go']['main']['App']['PreviewInfo']();
+}
+
+export function PreviewPage(arg1) {
+  return window['go']['main']['App']['PreviewPage'](arg1);
 }
 
 export function Reload(arg1) {
   return window['go']['main']['App']['Reload'](arg1);
+}
+
+export function SearchPreview(arg1) {
+  return window['go']['main']['App']['SearchPreview'](arg1);
+}
+
+export function SetHyphenation(arg1) {
+  return window['go']['main']['App']['SetHyphenation'](arg1);
 }
 
 export function SetMetadata(arg1) {

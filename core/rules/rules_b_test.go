@@ -42,6 +42,23 @@ func TestQuotesAcrossMarkup(t *testing.T) {
 	}
 }
 
+func TestSpAfterClose(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"(1917)год", "(1917) год"},
+		{"«нет»он", "«нет» он"},
+		{"а)Первый", "а) Первый"},
+	}
+	for _, c := range cases {
+		if got, _ := runPara(c.in); got != c.want {
+			t.Errorf("in %q: got %q, want %q", c.in, got, c.want)
+		}
+	}
+	// Latin/technical text after a bracket is left alone (guard is Cyrillic-only).
+	if got, _ := runPara("(x)abc"); got != "(x)abc" {
+		t.Errorf("Latin after bracket wrongly spaced: %q", got)
+	}
+}
+
 func TestDialogDash(t *testing.T) {
 	for _, in := range []string{"- Привет", "– Привет", "— Привет"} {
 		got, _ := runPara(in)

@@ -291,6 +291,85 @@ func ocrDigitFn(m meta, s string) (string, []Finding) {
 	return string(out), fs
 }
 
+// glued-words: two words run together with a lost space (онсказал → он сказал),
+// a common FB2/OCR artefact. Dictionary-gated and review-only (C): a candidate is
+// an all-lowercase (optionally capitalised) Cyrillic token that is NOT itself a
+// known word but splits into two known words. It never mutates unless accepted,
+// so an occasional bad split (стобой → сто бой) is harmless noise, not breakage.
+const (
+	gluedMinPart = 2 // no single-letter fragments
+	gluedMinWord = 5 // don't split short tokens
+)
+
+var ruleGluedWords = fnRule(
+	"glued-words", "Слипшиеся слова", "ocr", ConfC, gluedWordsFn,
+)
+
+func gluedWordsFn(m meta, s string) (string, []Finding) {
+	runes := []rune(s)
+	out := make([]rune, 0, len(runes)+8)
+	var fs []Finding
+	for i := 0; i < len(runes); {
+		if !isCyrillic(runes[i]) {
+			out = append(out, runes[i])
+			i++
+			continue
+		}
+		// Read a maximal Cyrillic token, noting any *internal* capital (which marks
+		// the case-boundary/proper-noun case we deliberately leave alone).
+		j := i
+		internalUpper := false
+		for j < len(runes) && isCyrillic(runes[j]) {
+			if j > i && unicode.IsUpper(runes[j]) {
+				internalUpper = true
+			}
+			j++
+		}
+		word := runes[i:j]
+		if internalUpper || len(word) < gluedMinWord || dictHas(string(word)) {
+			out = append(out, word...)
+			i = j
+			continue
+		}
+		if a, b, ok := splitGlued([]rune(strings.ToLower(string(word)))); ok {
+			after := a + " " + b
+			if unicode.IsUpper(word[0]) { // preserve a sentence-initial capital
+				ar := []rune(a)
+				ar[0] = unicode.ToUpper(ar[0])
+				after = string(ar) + " " + b
+			}
+			fs = append(fs, m.find(string(word), after, runeContext(runes, i, j)))
+			out = append(out, []rune(after)...) // applied only if the user accepts
+		} else {
+			out = append(out, word...)
+		}
+		i = j
+	}
+	if len(fs) == 0 {
+		return s, nil
+	}
+	return string(out), fs
+}
+
+// splitGlued returns the most balanced split of a lowercased word into two
+// known words (each at least gluedMinPart runes), or ok=false if none exists.
+func splitGlued(r []rune) (string, string, bool) {
+	bestA, bestB, best := "", "", -1
+	for k := gluedMinPart; k <= len(r)-gluedMinPart; k++ {
+		a, b := string(r[:k]), string(r[k:])
+		if dictHas(a) && dictHas(b) {
+			score := min(k, len(r)-k)
+			if score > best {
+				best, bestA, bestB = score, a, b
+			}
+		}
+	}
+	if best < 0 {
+		return "", "", false
+	}
+	return bestA, bestB, true
+}
+
 // --- look-alike tables -----------------------------------------------------
 
 func isCyrillic(r rune) bool { return unicode.Is(unicode.Cyrillic, r) }

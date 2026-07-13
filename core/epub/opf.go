@@ -19,9 +19,18 @@ const containerXML = `<?xml version="1.0" encoding="utf-8"?>
 </container>
 `
 
-// kindleCSS is a minimal, Kindle-safe stylesheet (DESIGN.md §3.8).
-const kindleCSS = `body { margin: 0 5%; line-height: 1.4; }
-p { margin: 0; text-indent: 1.2em; text-align: justify; }
+// kindleCSS returns a minimal, Kindle-safe stylesheet (DESIGN.md §3.8). Unless
+// allowHyphenation is set, it also turns off the reader's own hyphenation
+// engine, which otherwise breaks words mid-syllable on some Kindle firmwares.
+func kindleCSS(allowHyphenation bool) string {
+	bodyRule := `body { margin: 0 5%; line-height: 1.4; }`
+	if !allowHyphenation {
+		bodyRule = `body { margin: 0 5%; line-height: 1.4; -webkit-hyphens: none; -epub-hyphens: none; hyphens: none; adobe-hyphenate: none; }`
+	}
+	return bodyRule + "\n" + kindleCSSRest
+}
+
+const kindleCSSRest = `p { margin: 0; text-indent: 1.2em; text-align: justify; }
 h1, h2, h3, h4, h5, h6 { text-align: center; text-indent: 0; margin: 1em 0 0.6em; page-break-before: auto; }
 h1 { page-break-before: always; }
 .subtitle { text-indent: 0; text-align: center; font-weight: bold; margin: 0.8em 0; }

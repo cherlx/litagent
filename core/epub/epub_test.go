@@ -16,8 +16,14 @@ import (
 // readEPUB builds the book and returns the EPUB entries as name->content.
 func readEPUB(t *testing.T, book *model.Book) map[string]string {
 	t.Helper()
+	return readEPUBOpts(t, book, Options{})
+}
+
+// readEPUBOpts is readEPUB with explicit build Options.
+func readEPUBOpts(t *testing.T, book *model.Book, opts Options) map[string]string {
+	t.Helper()
 	var buf bytes.Buffer
-	if err := Build(book, Options{}, &buf); err != nil {
+	if err := Build(book, opts, &buf); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
@@ -134,6 +140,49 @@ func TestEmptyParagraphDropped(t *testing.T) {
 	}
 	if !strings.Contains(chap, `id="keep"`) {
 		t.Errorf("anchored empty paragraph wrongly dropped:\n%s", chap)
+	}
+}
+
+func TestHyphenationDisabled(t *testing.T) {
+	// A stray soft hyphen (U+00AD) in the text must be dropped, and the CSS must
+	// turn off the reader's own hyphenation engine — otherwise Kindle breaks
+	// words mid-syllable (e.g. "как" → "к-"/"-ак").
+	book := &model.Book{Bodies: []*model.Body{{Sections: []*model.Section{{
+		Content: []model.Block{&model.Paragraph{Inlines: []model.Inline{
+			&model.Text{Value: "к­ак"},
+		}}},
+	}}}}}
+	files := readEPUB(t, book)
+
+	css := files["OEBPS/style.css"]
+	for _, want := range []string{"hyphens: none", "adobe-hyphenate: none"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("style.css missing %q:\n%s", want, css)
+		}
+	}
+
+	chap := files["OEBPS/text/chap_0001.xhtml"]
+	if strings.ContainsRune(chap, '­') {
+		t.Errorf("soft hyphen (U+00AD) not stripped from output:\n%s", chap)
+	}
+	if !strings.Contains(chap, "как") {
+		t.Errorf("word not rejoined after dropping soft hyphen:\n%s", chap)
+	}
+}
+
+func TestHyphenationAllowed(t *testing.T) {
+	// With AllowHyphenation set, the CSS must leave the reader's own
+	// hyphenation engine on (no hyphens/adobe-hyphenate overrides).
+	book := &model.Book{Bodies: []*model.Body{{Sections: []*model.Section{{
+		Content: []model.Block{&model.Paragraph{Inlines: []model.Inline{
+			&model.Text{Value: "просто текст"},
+		}}},
+	}}}}}
+	css := readEPUBOpts(t, book, Options{AllowHyphenation: true})["OEBPS/style.css"]
+	for _, unwanted := range []string{"hyphens: none", "adobe-hyphenate: none"} {
+		if strings.Contains(css, unwanted) {
+			t.Errorf("style.css should not disable hyphenation, found %q:\n%s", unwanted, css)
+		}
 	}
 }
 

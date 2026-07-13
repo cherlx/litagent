@@ -14,12 +14,20 @@ export function Export():Promise<string>;
 
 export function GenerateCover(arg1:boolean):Promise<string>;
 
+export function GetHyphenation():Promise<boolean>;
+
 export function GetMetadata():Promise<main.MetaEdit>;
 
 export function Open():Promise<main.LoadResult>;
 
-export function Preview():Promise<string>;
+export function PreviewInfo():Promise<main.PreviewInfoView>;
+
+export function PreviewPage(arg1:number):Promise<main.PreviewPageView>;
 
 export function Reload(arg1:Array<string>):Promise<main.LoadResult>;
+
+export function SearchPreview(arg1:string):Promise<main.PreviewSearchResult>;
+
+export function SetHyphenation(arg1:boolean):Promise<void>;
 
 export function SetMetadata(arg1:main.MetaEdit):Promise<void>;

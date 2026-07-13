@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { Open, Reload, Export, Preview, CoverInfo, GenerateCover, ApplyCover, ClearCover, GetMetadata, SetMetadata, CleanTitleTags } from "../wailsjs/go/main/App";
+  import { Open, Reload, Export, PreviewInfo, PreviewPage, SearchPreview, CoverInfo, GenerateCover, ApplyCover, ClearCover, GetMetadata, SetMetadata, CleanTitleTags, GetHyphenation, SetHyphenation } from "../wailsjs/go/main/App";
   import { main } from "../wailsjs/go/models";
+  import { onMount } from "svelte";
 
   let result: main.LoadResult | null = null;
   let enabled = new Set<string>();
@@ -9,12 +10,40 @@
   let statusMsg = "";
   let filterRule: string | null = null;
   let view: "findings" | "preview" | "cover" | "meta" = "findings";
-  let previewHtml = "";
+
+  let previewPageCount = 0;
+  let previewIndex = 0;
+  let previewTitle = "";
+  let previewHtmlPage = "";
+  let previewJumpInput = "";
+  let searchQuery = "";
+  let searchResults: main.PreviewSearchHit[] = [];
+  let searchTotal = 0;
+  let searchTruncated = false;
+  let searchActive = false;
 
   let coverInfo: main.CoverInfoView | null = null;
   let genCoverUri = "";
 
   let meta: main.MetaEdit | null = null;
+  let allowHyphenation = false;
+
+  onMount(async () => {
+    try {
+      allowHyphenation = await GetHyphenation();
+    } catch (e) {
+      errorMsg = String(e);
+    }
+  });
+
+  async function toggleHyphenation() {
+    allowHyphenation = !allowHyphenation;
+    try {
+      await SetHyphenation(allowHyphenation);
+    } catch (e) {
+      errorMsg = String(e);
+    }
+  }
 
   async function showMeta() {
     view = "meta";
@@ -84,17 +113,70 @@
     }
   }
 
-  async function refreshPreview() {
+  function applyPreviewPage(p: { index: number; title: string; html: string }) {
+    previewIndex = p.index;
+    previewTitle = p.title;
+    previewHtmlPage = p.html;
+  }
+
+  async function loadPreviewInfo() {
     try {
-      previewHtml = await Preview();
+      const info = await PreviewInfo();
+      previewPageCount = info.pageCount;
+      applyPreviewPage(info.page);
     } catch (e) {
       errorMsg = String(e);
     }
   }
 
+  async function loadPreviewPage(n: number) {
+    if (n < 0 || n >= previewPageCount) return;
+    try {
+      applyPreviewPage(await PreviewPage(n));
+    } catch (e) {
+      errorMsg = String(e);
+    }
+  }
+
+  function prevPage() {
+    loadPreviewPage(previewIndex - 1);
+  }
+
+  function nextPage() {
+    loadPreviewPage(previewIndex + 1);
+  }
+
+  function jumpToPage() {
+    const n = parseInt(previewJumpInput, 10);
+    if (!Number.isNaN(n)) loadPreviewPage(n - 1);
+  }
+
+  async function searchPreview() {
+    if (!searchQuery.trim()) return;
+    try {
+      const r = await SearchPreview(searchQuery);
+      searchResults = r.hits;
+      searchTotal = r.total;
+      searchTruncated = r.truncated;
+      searchActive = true;
+    } catch (e) {
+      errorMsg = String(e);
+    }
+  }
+
+  function clearSearch() {
+    searchActive = false;
+    searchResults = [];
+  }
+
+  async function goToSearchHit(hit: main.PreviewSearchHit) {
+    await loadPreviewPage(hit.page);
+    searchActive = false;
+  }
+
   async function showPreview() {
     view = "preview";
-    await refreshPreview();
+    await loadPreviewInfo();
   }
 
   async function openFile() {
@@ -110,10 +192,20 @@
         genCoverUri = "";
         coverInfo = null;
         meta = null;
+        previewPageCount = 0;
+        previewIndex = 0;
+        previewTitle = "";
+        previewHtmlPage = "";
+        previewJumpInput = "";
+        searchQuery = "";
+        searchResults = [];
+        searchActive = false;
+        searchTotal = 0;
+        searchTruncated = false;
 
         // подгрузить данные активной вкладки под новую книгу
         if (view === "meta") await showMeta();
-        else if (view === "preview") await refreshPreview();
+        else if (view === "preview") await loadPreviewInfo();
         else if (view === "cover") await showCover();
         // view === "findings" использует result напрямую — доп. загрузка не нужна
       }
@@ -132,7 +224,14 @@
     try {
       const r = await Reload(Array.from(enabled));
       if (r) result = r;
-      if (view === "preview") await refreshPreview();
+      if (view === "preview") {
+        const info = await PreviewInfo();
+        previewPageCount = info.pageCount;
+        const target = Math.min(previewIndex, Math.max(previewPageCount - 1, 0));
+        if (target <= 0) applyPreviewPage(info.page);
+        else await loadPreviewPage(target);
+        if (searchActive && searchQuery.trim()) await searchPreview();
+      }
     } catch (e) {
       errorMsg = String(e);
     } finally {
@@ -247,13 +346,73 @@
     </aside>
 
     {#if view === "preview"}
-      <section class="preview">{@html previewHtml}</section>
+      <section class="preview-wrap">
+        <div class="preview-bar toolbar">
+          <button class="small" on:click={prevPage} disabled={previewIndex <= 0}>‹ Пред.</button>
+          <span class="page-indicator">
+            Стр.
+            <input
+              class="page-input"
+              type="number"
+              min="1"
+              max={previewPageCount}
+              bind:value={previewJumpInput}
+              on:change={jumpToPage}
+              placeholder={String(previewIndex + 1)}
+            />
+            / {previewPageCount}
+          </span>
+          <button class="small" on:click={nextPage} disabled={previewIndex >= previewPageCount - 1}>След. ›</button>
+          {#if previewTitle}<span class="page-title" title={previewTitle}>{previewTitle}</span>{/if}
+          <div class="spacer"></div>
+          <input
+            class="search-input"
+            type="text"
+            placeholder="Поиск по тексту книги…"
+            bind:value={searchQuery}
+            on:keydown={(e) => {
+              if (e.key === "Enter") searchPreview();
+            }}
+          />
+          <button class="small" on:click={searchPreview} disabled={!searchQuery.trim()}>Найти</button>
+          {#if searchActive}<button class="small" on:click={clearSearch}>✕ сброс</button>{/if}
+        </div>
+
+        {#if searchActive}
+          <div class="search-results">
+            <div class="findings-head">
+              Найдено {searchResults.length} из {searchTotal}
+              {#if searchTruncated}(список усечён){/if}
+            </div>
+            {#if searchResults.length === 0}
+              <div class="none">Ничего не найдено.</div>
+            {:else}
+              <ul class="shlist">
+                {#each searchResults as h}
+                  <li>
+                    <button class="link shit" on:click={() => goToSearchHit(h)}>
+                      <span class="sec">стр. {h.page + 1}{h.title ? " · " + h.title : ""}</span>
+                      <code class="ctx">{ctxParts(h.context).pre}<mark>{ctxParts(h.context).mid}</mark>{ctxParts(h.context).post}</code>
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {:else}
+          <section class="preview">{@html previewHtmlPage}</section>
+        {/if}
+      </section>
     {:else if view === "meta"}
       <section class="meta-tab">
         {#if meta}
           <div class="meta-hint">
             Правки применяются при «Собрать EPUB». Серию оставьте пустой, чтобы её не было в списке Kindle.
           </div>
+          <label class="apply-toggle" title="Если выключено, ридер сам не переносит слова по слогам (безопаснее для Kindle)">
+            <input type="checkbox" checked={allowHyphenation} on:change={toggleHyphenation} />
+            Разрешить переносы слов в ридере
+          </label>
           <div class="form">
             <label class="wide">
               <span>Название</span>
@@ -640,6 +799,80 @@
     color: #cfe8ff;
   }
 
+  .preview-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .preview-bar {
+    padding: 8px 14px;
+    border-bottom: 1px solid #2c3a48;
+    flex-wrap: wrap;
+  }
+  .page-indicator {
+    color: #9fb3c8;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .page-input {
+    width: 52px;
+    background: #1b2735;
+    color: #e8edf2;
+    border: 1px solid #3a4d60;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font: inherit;
+  }
+  .page-title {
+    color: #6cc6ff;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 30vw;
+  }
+  .search-input {
+    background: #1b2735;
+    color: #e8edf2;
+    border: 1px solid #3a4d60;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font: inherit;
+    min-width: 200px;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: #6cc6ff;
+  }
+  .search-results {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+  }
+  ul.shlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  ul.shlist li {
+    border-bottom: 1px solid #243341;
+  }
+  ul.shlist .link.shit {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 14px;
+    color: inherit;
+  }
+  ul.shlist .link.shit:hover {
+    background: #1e2c3a;
+  }
+
   section.preview {
     flex: 1;
     overflow: auto;
@@ -683,7 +916,6 @@
     text-indent: 0;
     font-weight: bold;
   }
-
   section.meta-tab {
     flex: 1;
     overflow: auto;
@@ -695,6 +927,9 @@
     color: #9fb3c8;
     margin-bottom: 14px;
     line-height: 1.5;
+  }
+  .meta-tab .apply-toggle {
+    margin-bottom: 14px;
   }
   .form {
     display: grid;

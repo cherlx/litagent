@@ -55,6 +55,17 @@ func nbspAbbr(m meta, s string) (string, []Finding) {
 	return s, fs
 }
 
+// sp-after-close: a missing space after a closing ")" or "»" that is glued to a
+// following Cyrillic letter («Да!»сказал → «Да!» сказал, (1917)год → (1917) год,
+// "а)Первый" → "а) Первый"). The Cyrillic guard keeps it clear of smileys and
+// Latin/технических конструкций; in Russian prose a closing bracket/quote never
+// legitimately abuts a Cyrillic letter. Complements sp-after-punct, which covers
+// ",;:!?" but not the closing bracket/quote pair.
+var ruleSpAfterClose = reRule(
+	"sp-after-close", "Нет пробела после ) или »", "spacing", ConfB,
+	`([)»])(\p{Cyrillic})`, func(g []string) string { return g[1] + " " + g[2] },
+)
+
 // nbsp-num: non-breaking space around numbers and signs (5 %, № 7).
 var ruleNbspNum = reRule(
 	"nbsp-num", "Неразрывный пробел с числами", "typography", ConfB,

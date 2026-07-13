@@ -6,7 +6,9 @@ import (
 )
 
 var (
-	textEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+	// "­" (soft hyphen) is dropped here so a stray one in the source never
+	// reaches the reader and triggers a mid-word break (we disable hyphenation).
+	textEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "­", "")
 	attrEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
 )
 

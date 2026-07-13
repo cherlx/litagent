@@ -82,7 +82,49 @@ func isAllCaps(r []rune) bool {
 	return hasUpper
 }
 
-var blockRules = []blockRule{rulePageNumber, ruleHeadingDetect}
+// scene-break: a paragraph made up entirely of separator glyphs (* * *, ***,
+// ###, • • •, a rule of dashes) — a scene divider that OCR/conversion has left in
+// an inconsistent shape. Review-only (C): when accepted it normalises the
+// paragraph to a canonical "* * *". Kept conservative — a lone "-"/"—" or "– –"
+// is NOT treated as a scene break (too easily a real dash), only asterisk/bullet
+// lines or a run of 3+ dashes qualify.
+var ruleSceneBreak = blockRule{
+	id: "scene-break", name: "Разделитель сцен (* * *)", category: "structure", level: ConfC,
+	detect: func(text string) (string, bool) {
+		if looksLikeSceneBreak(text) {
+			return "* * *", true
+		}
+		return "", false
+	},
+	apply: func(p *model.Paragraph) {
+		p.Inlines = []model.Inline{&model.Text{Value: "* * *"}}
+	},
+}
+
+// looksLikeSceneBreak reports whether text consists solely of scene-separator
+// glyphs (plus spaces) with a strong enough signal to be a divider, not a stray
+// dash: any asterisk/bullet/hash, or three or more dashes.
+func looksLikeSceneBreak(text string) bool {
+	if strings.TrimSpace(text) == "" {
+		return false
+	}
+	stars, dashes := 0, 0
+	for _, r := range text {
+		switch r {
+		case ' ', '\t', nbspRune:
+			// filler between separator glyphs
+		case '*', '#', '•', '◦', '○', '∗', '⁂', '·', '＊':
+			stars++
+		case '—', '–', '-', '―':
+			dashes++
+		default:
+			return false // any other character → not a separator line
+		}
+	}
+	return stars >= 1 || dashes >= 3
+}
+
+var blockRules = []blockRule{rulePageNumber, ruleHeadingDetect, ruleSceneBreak}
 
 // runBlockRules applies the structural detectors to every content paragraph. It
 // always reports findings; a matched rule that the user accepted also mutates.

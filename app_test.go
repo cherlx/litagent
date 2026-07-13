@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"litagent/core/model"
 	"litagent/core/rules"
 )
 
@@ -63,17 +64,25 @@ func TestAppRunRespectsDisabledRules(t *testing.T) {
 }
 
 func TestPreviewHTML(t *testing.T) {
+	book := &model.Book{Bodies: []*model.Body{{Sections: []*model.Section{{
+		Title:   []model.Block{&model.Paragraph{Inlines: []model.Inline{&model.Text{Value: "Глава первая"}}}},
+		Content: []model.Block{&model.Paragraph{Inlines: []model.Inline{&model.Text{Value: "Это первый абзац."}}}},
+	}}}}}
+
 	a := NewApp()
-	a.path = sampleFB2
-	if _, err := a.run(rules.DefaultApplyIDs()); err != nil {
-		t.Fatalf("run: %v", err)
+	a.book = book
+	a.previewPages = buildPreviewPages(book)
+
+	info, err := a.PreviewInfo()
+	if err != nil {
+		t.Fatalf("PreviewInfo: %v", err)
 	}
-	html := previewHTML(a.book)
-	if !strings.Contains(html, "Глава первая") {
-		t.Errorf("preview missing chapter heading:\n%s", html)
+	htm := info.Page.HTML
+	if !strings.Contains(htm, "Глава первая") {
+		t.Errorf("preview missing chapter heading:\n%s", htm)
 	}
-	if !strings.Contains(html, "<p>") || !strings.Contains(html, "первый") {
-		t.Errorf("preview missing paragraph text:\n%s", html)
+	if !strings.Contains(htm, "<p>") || !strings.Contains(htm, "первый") {
+		t.Errorf("preview missing paragraph text:\n%s", htm)
 	}
 }
 

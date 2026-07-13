@@ -16,6 +16,7 @@ var pipeline = []step{
 	tstep(ruleSpBeforePunct),
 	tstep(ruleSpBracket),
 	tstep(ruleSpAfterPunct),
+	tstep(ruleSpAfterClose),
 	tstep(ruleDashHyphen),
 	tstep(ruleDashRange),
 	tstep(ruleDashEndash),
@@ -36,6 +37,7 @@ var pipeline = []step{
 	tstep(ruleDotSpace),
 	tstep(ruleMixedAlpha),
 	tstep(ruleOCRDigit),
+	tstep(ruleGluedWords),
 }
 
 // defaultApply marks every non-C rule as applied; C rules default to detect-only.

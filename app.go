@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -34,6 +35,14 @@ type App struct {
 
 	// Edited metadata, applied to the export copy (see meta_app.go). nil = none.
 	metaEdit *MetaEdit
+
+	// allowHyphenation leaves the reader's own hyphenation engine on for the
+	// exported EPUB. Default false matches the current Kindle-safe CSS.
+	allowHyphenation bool
+
+	// previewPages is the flattened, paginated preview of the current book
+	// (see preview.go). Rebuilt whenever a.book is (re)assigned in run().
+	previewPages []previewPage
 }
 
 // NewApp creates a new App application struct.
@@ -153,27 +162,155 @@ func (a *App) Export() (string, error) {
 	}
 	exportBook := a.prepareExportBook(book)
 
+	a.mu.Lock()
+	allowHyphenation := a.allowHyphenation
+	a.mu.Unlock()
+
 	w, err := os.Create(out)
 	if err != nil {
 		return "", err
 	}
 	defer w.Close()
-	if err := epub.Build(exportBook, epub.Options{}, w); err != nil {
+	if err := epub.Build(exportBook, epub.Options{AllowHyphenation: allowHyphenation}, w); err != nil {
 		return "", fmt.Errorf("сборка EPUB: %w", err)
 	}
 	return out, nil
 }
 
-// Preview renders the first chapter of the corrected book to HTML so the user
-// can see the result of the applied rules.
-func (a *App) Preview() (string, error) {
+// GetHyphenation reports whether the reader's own automatic hyphenation is
+// left enabled on export (default: disabled, since it breaks words
+// mid-syllable on some Kindle firmwares).
+func (a *App) GetHyphenation() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.allowHyphenation
+}
+
+// SetHyphenation toggles whether the reader's own automatic hyphenation is
+// left enabled on export.
+func (a *App) SetHyphenation(allow bool) {
+	a.mu.Lock()
+	a.allowHyphenation = allow
+	a.mu.Unlock()
+}
+
+// PreviewPageView is one paginated preview page sent to the frontend.
+type PreviewPageView struct {
+	Index int    `json:"index"` // 0-based
+	Title string `json:"title"`
+	HTML  string `json:"html"`
+}
+
+// PreviewInfoView is returned by PreviewInfo: total page count plus page 0, so
+// the frontend can render the tab from a single round trip.
+type PreviewInfoView struct {
+	PageCount int             `json:"pageCount"`
+	Page      PreviewPageView `json:"page"`
+}
+
+// PreviewSearchHit is one search match, mirroring FindingView's ⟦⟧-context
+// convention so the frontend can reuse its existing highlight rendering.
+type PreviewSearchHit struct {
+	Page    int    `json:"page"` // 0-based page index to jump to
+	Title   string `json:"title"`
+	Context string `json:"context"`
+}
+
+// PreviewSearchResult is returned by SearchPreview.
+type PreviewSearchResult struct {
+	Hits      []PreviewSearchHit `json:"hits"`
+	Total     int                `json:"total"`
+	Truncated bool               `json:"truncated"`
+}
+
+// previewSearchPerPageCap/previewSearchTotalCap mirror perRuleCap's
+// cap-per-group-but-count-everything convention, with "page" as the grouping
+// axis, so one common word on one page can't crowd out matches elsewhere.
+const previewSearchPerPageCap = 20
+const previewSearchTotalCap = 300
+
+func (a *App) previewPage(page int) (*PreviewPageView, error) {
+	a.mu.Lock()
+	pages := a.previewPages
+	a.mu.Unlock()
+	if len(pages) == 0 {
+		return &PreviewPageView{Title: "Нет содержимого", HTML: "<p>В книге нет содержимого для предпросмотра.</p>"}, nil
+	}
+	if page < 0 || page >= len(pages) {
+		return nil, fmt.Errorf("страница %d вне диапазона (всего %d)", page+1, len(pages))
+	}
+	p := pages[page]
+	return &PreviewPageView{Index: page, Title: p.title, HTML: p.html}, nil
+}
+
+// PreviewInfo returns the total page count and the first page of the current
+// book's preview.
+func (a *App) PreviewInfo() (*PreviewInfoView, error) {
+	a.mu.Lock()
+	book := a.book
+	count := len(a.previewPages)
+	a.mu.Unlock()
+	if book == nil {
+		return nil, fmt.Errorf("нет открытой книги")
+	}
+	page, err := a.previewPage(0)
+	if err != nil {
+		return nil, err
+	}
+	return &PreviewInfoView{PageCount: count, Page: *page}, nil
+}
+
+// PreviewPage returns one page (0-based) of the current book's preview.
+func (a *App) PreviewPage(page int) (*PreviewPageView, error) {
 	a.mu.Lock()
 	book := a.book
 	a.mu.Unlock()
 	if book == nil {
-		return "", fmt.Errorf("нет открытой книги")
+		return nil, fmt.Errorf("нет открытой книги")
 	}
-	return previewHTML(book), nil
+	return a.previewPage(page)
+}
+
+// SearchPreview finds query across every preview page (case-insensitive,
+// rune-safe) and returns capped, ⟦⟧-marked matches with their page index.
+func (a *App) SearchPreview(query string) (*PreviewSearchResult, error) {
+	a.mu.Lock()
+	book := a.book
+	pages := a.previewPages
+	a.mu.Unlock()
+	if book == nil {
+		return nil, fmt.Errorf("нет открытой книги")
+	}
+
+	q := []rune(strings.TrimSpace(query))
+	for i, r := range q {
+		q[i] = unicode.ToLower(r)
+	}
+	if len(q) == 0 {
+		return &PreviewSearchResult{}, nil
+	}
+
+	var hits []PreviewSearchHit
+	total := 0
+	for pi, p := range pages {
+		matches := foldIndexAllRunes(p.textRunes, q)
+		total += len(matches)
+		take := matches
+		if len(take) > previewSearchPerPageCap {
+			take = take[:previewSearchPerPageCap]
+		}
+		for _, rng := range take {
+			if len(hits) >= previewSearchTotalCap {
+				continue // keep scanning remaining pages so Total stays exact
+			}
+			hits = append(hits, PreviewSearchHit{
+				Page:    pi,
+				Title:   p.title,
+				Context: previewRuneContext(p.textRunes, rng[0], rng[1]),
+			})
+		}
+	}
+	return &PreviewSearchResult{Hits: hits, Total: total, Truncated: total > len(hits)}, nil
 }
 
 // --- internals -------------------------------------------------------------
@@ -203,6 +340,7 @@ func (a *App) run(enabled []string) (*LoadResult, error) {
 
 	a.mu.Lock()
 	a.book = book
+	a.previewPages = buildPreviewPages(book)
 	a.mu.Unlock()
 
 	return buildResult(path, book, findings, enabledSet), nil

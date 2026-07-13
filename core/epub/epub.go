@@ -17,6 +17,11 @@ type Options struct {
 	// Zero means use the default. (Deep-splitting is a planned refinement;
 	// currently one file per top-level section.)
 	SplitThresholdBytes int
+
+	// AllowHyphenation leaves the reader's own automatic hyphenation engine on.
+	// Default (false) disables it in the CSS, since it breaks words
+	// mid-syllable on some Kindle firmwares (see kindleCSS in opf.go).
+	AllowHyphenation bool
 }
 
 type builder struct {
@@ -64,7 +69,7 @@ func Build(b *model.Book, opts Options, w io.Writer) error {
 	if err := write("OEBPS/toc.ncx", bd.renderNCX(pl)); err != nil {
 		return err
 	}
-	if err := write("OEBPS/style.css", kindleCSS); err != nil {
+	if err := write("OEBPS/style.css", kindleCSS(opts.AllowHyphenation)); err != nil {
 		return err
 	}
 	for _, d := range pl.docs {

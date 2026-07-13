@@ -153,6 +153,74 @@ func TestHeadingDetectApplyGated(t *testing.T) {
 	}
 }
 
+func TestGluedWords(t *testing.T) {
+	// Two known words run together are suggested (review-only: text unchanged).
+	got, fs := runPara("онсказал ей")
+	if got != "онсказал ей" {
+		t.Errorf("text mutated by review-only rule: %q", got)
+	}
+	f := findByRule(fs, "glued-words")
+	if f == nil {
+		t.Fatal("no glued-words finding")
+	}
+	if f.Before != "онсказал" || f.After != "он сказал" {
+		t.Errorf("finding = %q -> %q, want онсказал -> он сказал", f.Before, f.After)
+	}
+}
+
+func TestGluedWordsCasePreservedAndKnownSkipped(t *testing.T) {
+	// A sentence-initial capital is preserved on the split.
+	if _, fs := runPara("Онсказал"); findByRule(fs, "glued-words") == nil {
+		t.Error("capitalised glued word not detected")
+	} else if f := findByRule(fs, "glued-words"); f.After != "Он сказал" {
+		t.Errorf("case not preserved: After = %q, want «Он сказал»", f.After)
+	}
+	// A known dictionary word is never split.
+	if _, fs := runPara("состоит"); findByRule(fs, "glued-words") != nil {
+		t.Error("known word wrongly flagged as glued")
+	}
+	// A word with an internal capital (proper-noun/OCR case-boundary) is left to
+	// other handling, not treated as a dictionary glue.
+	if _, fs := runPara("МакДональд"); findByRule(fs, "glued-words") != nil {
+		t.Error("internal-capital word wrongly flagged as glued")
+	}
+}
+
+func TestSceneBreakDetect(t *testing.T) {
+	for _, sep := range []string{"* * *", "***", "###", "———"} {
+		if _, fs := runPara(sep); findByRule(fs, "scene-break") == nil {
+			t.Errorf("separator %q not detected as scene break", sep)
+		}
+	}
+	// A lone dash and normal prose are NOT scene breaks.
+	if _, fs := runPara("—"); findByRule(fs, "scene-break") != nil {
+		t.Error("lone dash wrongly flagged as scene break")
+	}
+	if _, fs := runPara("Обычный текст."); findByRule(fs, "scene-break") != nil {
+		t.Error("normal paragraph wrongly flagged as scene break")
+	}
+}
+
+func TestSceneBreakApplyGated(t *testing.T) {
+	mk := func() (*model.Paragraph, *model.Book) {
+		p := &model.Paragraph{Inlines: []model.Inline{&model.Text{Value: "***"}}}
+		b := &model.Book{Bodies: []*model.Body{{Sections: []*model.Section{{Content: []model.Block{p}}}}}}
+		return p, b
+	}
+	// Default: detected but not applied.
+	p1, b1 := mk()
+	DefaultEngine().Run(b1)
+	if v := p1.Inlines[0].(*model.Text).Value; v != "***" {
+		t.Errorf("scene break normalised without acceptance: %q", v)
+	}
+	// Accepted: normalised to the canonical "* * *".
+	p2, b2 := mk()
+	NewEngineFor(func(id string) bool { return id == "scene-break" }).Run(b2)
+	if v := p2.Inlines[0].(*model.Text).Value; v != "* * *" {
+		t.Errorf("scene break not normalised when accepted: %q", v)
+	}
+}
+
 func TestLevelBApplies(t *testing.T) {
 	// Dialogue dash (B) applies; «еще» is left unchanged (yo-restore is disabled).
 	got, fs := runPara("- еще не время")
