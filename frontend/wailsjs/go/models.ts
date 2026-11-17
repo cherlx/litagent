@@ -1,5 +1,5 @@
 export namespace main {
-
+	
 	export class CoverInfoView {
 	    hasOriginal: boolean;
 	    originalDataUri: string;
@@ -7,11 +7,11 @@ export namespace main {
 	    wallpaperDir: string;
 	    applied: boolean;
 	    plateEnabled: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CoverInfoView(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hasOriginal = source["hasOriginal"];
@@ -28,11 +28,11 @@ export namespace main {
 	    context: string;
 	    before: string;
 	    after: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FindingView(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ruleId = source["ruleId"];
@@ -49,11 +49,11 @@ export namespace main {
 	    level: string;
 	    count: number;
 	    enabled: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RuleStat(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -70,11 +70,11 @@ export namespace main {
 	    lang: string;
 	    sections: number;
 	    hasCover: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MetaInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.title = source["title"];
@@ -92,11 +92,11 @@ export namespace main {
 	    findings: FindingView[];
 	    total: number;
 	    truncated: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoadResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
@@ -107,7 +107,7 @@ export namespace main {
 	        this.total = source["total"];
 	        this.truncated = source["truncated"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -138,11 +138,11 @@ export namespace main {
 	    isbn: string;
 	    annotation: string;
 	    keywords: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MetaEdit(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.title = source["title"];
@@ -158,16 +158,16 @@ export namespace main {
 	        this.keywords = source["keywords"];
 	    }
 	}
-
+	
 	export class PreviewPageView {
 	    index: number;
 	    title: string;
 	    html: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PreviewPageView(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.index = source["index"];
@@ -178,17 +178,17 @@ export namespace main {
 	export class PreviewInfoView {
 	    pageCount: number;
 	    page: PreviewPageView;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PreviewInfoView(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.pageCount = source["pageCount"];
 	        this.page = this.convertValues(source["page"], PreviewPageView);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -207,16 +207,16 @@ export namespace main {
 		    return a;
 		}
 	}
-
+	
 	export class PreviewSearchHit {
 	    page: number;
 	    title: string;
 	    context: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PreviewSearchHit(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.page = source["page"];
@@ -228,18 +228,18 @@ export namespace main {
 	    hits: PreviewSearchHit[];
 	    total: number;
 	    truncated: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PreviewSearchResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hits = this.convertValues(source["hits"], PreviewSearchHit);
 	        this.total = source["total"];
 	        this.truncated = source["truncated"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
