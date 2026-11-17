@@ -26,6 +26,10 @@ export function GenerateCover(arg1) {
   return window['go']['main']['App']['GenerateCover'](arg1);
 }
 
+export function GetCoverPlate() {
+  return window['go']['main']['App']['GetCoverPlate']();
+}
+
 export function GetHyphenation() {
   return window['go']['main']['App']['GetHyphenation']();
 }
@@ -52,6 +56,10 @@ export function Reload(arg1) {
 
 export function SearchPreview(arg1) {
   return window['go']['main']['App']['SearchPreview'](arg1);
+}
+
+export function SetCoverPlate(arg1) {
+  return window['go']['main']['App']['SetCoverPlate'](arg1);
 }
 
 export function SetHyphenation(arg1) {

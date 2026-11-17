@@ -17,7 +17,8 @@ type CoverInfoView struct {
 	OriginalDataUri string `json:"originalDataUri"`
 	TemplateCount   int    `json:"templateCount"`
 	WallpaperDir    string `json:"wallpaperDir"`
-	Applied         bool   `json:"applied"` // generated cover is set to be used on export
+	Applied         bool   `json:"applied"`      // generated cover is set to be used on export
+	PlateEnabled    bool   `json:"plateEnabled"` // draw title/author plate on generated cover
 }
 
 // CoverInfo returns the current book's cover (as a data URI) and how many
@@ -26,6 +27,7 @@ func (a *App) CoverInfo() CoverInfoView {
 	a.mu.Lock()
 	book := a.book
 	applied := a.useGenCover
+	plateEnabled := a.coverPlateEnabled
 	a.mu.Unlock()
 
 	dir := cover.WallpaperDir()
@@ -35,6 +37,7 @@ func (a *App) CoverInfo() CoverInfoView {
 		TemplateCount: len(tpls),
 		WallpaperDir:  dir,
 		Applied:       applied,
+		PlateEnabled:  plateEnabled,
 	}
 	if book != nil {
 		if uri := originalCoverDataURI(book); uri != "" {
@@ -77,11 +80,17 @@ func (a *App) GenerateCover(reshuffle bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	a.mu.Lock()
+	plateEnabled := a.coverPlateEnabled
+	a.mu.Unlock()
+
 	title, author := a.effectiveTitleAuthor(book)
 	data, ct, err := cover.Generate(tpls[idx].Path, cover.Options{
-		Title:  title,
-		Author: author,
-		Cfg:    cfg,
+		Title:        title,
+		Author:       author,
+		Cfg:          cfg,
+		PlateEnabled: plateEnabled,
 	})
 	if err != nil {
 		return "", fmt.Errorf("генерация обложки: %w", err)
@@ -113,6 +122,20 @@ func (a *App) ApplyCover() error {
 func (a *App) ClearCover() {
 	a.mu.Lock()
 	a.useGenCover = false
+	a.mu.Unlock()
+}
+
+// GetCoverPlate returns whether the title/author plate is enabled on generated covers.
+func (a *App) GetCoverPlate() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.coverPlateEnabled
+}
+
+// SetCoverPlate toggles whether the title/author plate is drawn on generated covers.
+func (a *App) SetCoverPlate(enabled bool) {
+	a.mu.Lock()
+	a.coverPlateEnabled = enabled
 	a.mu.Unlock()
 }
 

@@ -27,11 +27,12 @@ type App struct {
 	book *model.Book  // corrected book from the last run (for export)
 
 	// Generated cover state (see cover_app.go).
-	coverData   []byte           // last generated JPEG, nil if none
-	coverCT     string           // its content type
-	coverTpls   []cover.Template // templates from the wallpaper folder
-	coverIdx    int              // index of the template last used (-1 if none)
-	useGenCover bool             // embed the generated cover on export
+	coverData        []byte           // last generated JPEG, nil if none
+	coverCT          string           // its content type
+	coverTpls        []cover.Template // templates from the wallpaper folder
+	coverIdx         int              // index of the template last used (-1 if none)
+	useGenCover      bool             // embed the generated cover on export
+	coverPlateEnabled bool            // draw title/author plate on generated cover (default true)
 
 	// Edited metadata, applied to the export copy (see meta_app.go). nil = none.
 	metaEdit *MetaEdit
@@ -52,7 +53,7 @@ func (a *App) Version() string {
 }
 
 // NewApp creates a new App application struct.
-func NewApp() *App { return &App{coverIdx: -1} }
+func NewApp() *App { return &App{coverIdx: -1, coverPlateEnabled: true} }
 
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
@@ -101,11 +102,11 @@ const perRuleCap = 200
 
 // --- bound methods ---------------------------------------------------------
 
-// Open shows a file picker, loads the chosen FB2 and runs all rules.
+// Open shows a file picker, loads the chosen FB2/EPUB and runs all rules.
 func (a *App) Open() (*LoadResult, error) {
 	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Открыть FB2",
-		Filters: []runtime.FileFilter{{DisplayName: "FB2 книги (*.fb2)", Pattern: "*.fb2"}},
+		Title:   "Открыть FB2 или EPUB",
+		Filters: []runtime.FileFilter{{DisplayName: "FB2 и EPUB книги (*.fb2, *.epub)", Pattern: "*.fb2;*.epub"}},
 	})
 	if err != nil {
 		return nil, err
@@ -332,9 +333,23 @@ func (a *App) run(enabled []string) (*LoadResult, error) {
 	}
 	defer f.Close()
 
-	book, err := fb2.Parse(f)
-	if err != nil {
-		return nil, fmt.Errorf("разбор FB2: %w", err)
+	// Determine format by extension
+	ext := strings.ToLower(filepath.Ext(path))
+	var book *model.Book
+
+	switch ext {
+	case ".fb2":
+		book, err = fb2.Parse(f)
+		if err != nil {
+			return nil, fmt.Errorf("разбор FB2: %w", err)
+		}
+	case ".epub":
+		book, err = epub.Parse(f)
+		if err != nil {
+			return nil, fmt.Errorf("разбор EPUB: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("неподдерживаемый формат: %s (поддерживаются .fb2 и .epub)", ext)
 	}
 
 	enabledSet := make(map[string]bool, len(enabled))

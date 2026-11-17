@@ -1,7 +1,7 @@
-# litagent — конвертер FB2 в EPUB для Kindle
+# litagent — редактор и конвертер FB2/EPUB для Kindle
 
-**Конвертирует FB2 в чистый EPUB3 для Kindle и чинит типографику.** Портативное офлайн-приложение для Windows.
-*Convert FB2 to EPUB for Kindle — offline FB2 → EPUB3 converter with typography cleanup.*
+**Конвертирует FB2 в чистый EPUB3 для Kindle, редактирует EPUB и чинит типографику.** Портативное офлайн-приложение для Windows.
+*Convert FB2 to EPUB for Kindle, edit EPUB metadata and typography — offline FB2/EPUB → EPUB3 converter.*
 
 Сделано на [Wails](https://wails.io): ядро на Go + интерфейс на Svelte. Без облака, без установки, без регистрации — один `.exe`.
 
@@ -28,14 +28,15 @@
 
 FB2 — основной формат рунета, но Kindle его не читает, а *Send to Kindle* принимает EPUB. Просто переименовать или сконвертировать «в лоб» мало: FB2-файлы (особенно из сканов и OCR) часто содержат типографский мусор — двойные пробелы, дефисы вместо тире, прямые кавычки, разорванные переносами слова, битую кодировку windows-1251.
 
-**litagent** приводит текст в порядок и собирает из него аккуратный EPUB3, готовый для Kindle.
+**litagent** приводит текст в порядок и собирает из него аккуратный EPUB3, готовый для Kindle. Также открывает готовые EPUB для редактирования метаданных и обложки.
 
 Что он делает:
 
+- **Открывает FB2 и EPUB** — редактирование метаданных, обложки и исправление опечаток в обоих форматах.
 - **Чинит типографику** по набору правил — пробелы, тире, кавычки-«ёлочки», многоточия, неразрывные пробелы (предлоги, инициалы, числа), склейку переносов, OCR-артефакты.
 - **Конвертирует в качественный EPUB3** — корректная разбивка на главы, рабочая навигация (nav + ncx), всплывающие сноски на Kindle, аккуратный Kindle-safe CSS, обложка.
 - **Показывает все правки** сгруппированными по правилам — ничего не применяется «вслепую», каждое изменение можно отключить.
-- **Генерирует обложки** из шаблонов, если в книге её нет.
+- **Генерирует обложки** из шаблонов — можно выбрать с текстом (название + автор) или без (только фон).
 - **Редактирует метаданные** — название, авторы, переводчики, серия, издатель, аннотация.
 
 Правки разделены по уровню уверенности: **A** (безопасные) и **B** (эвристические) применяются автоматически, **C** — только подсказки для ручного ревью. Подробности логики — в [`DESIGN.md`](DESIGN.md).
@@ -45,10 +46,10 @@ FB2 — основной формат рунета, но Kindle его не чи
 ## ❓ FAQ
 
 **Как конвертировать FB2 в EPUB для Kindle?**
-Скачайте `litagent.exe`, откройте FB2 кнопкой «Открыть FB2…», при желании просмотрите правки и метаданные, нажмите «Собрать EPUB…». Получившийся `.epub` отправьте на Kindle через *Send to Kindle* (приложение, e-mail или USB).
+Скачайте `litagent.exe`, откройте FB2 или EPUB кнопкой «Открыть FB2/EPUB…», при желании просмотрите правки и метаданные, нажмите «Собрать EPUB…». Получившийся `.epub` отправьте на Kindle через *Send to Kindle* (приложение, e-mail или USB).
 
 **Чем отличается от Calibre?**
-Calibre — большой комбайн-библиотека. litagent — узкий инструмент под один сценарий «FB2 → хороший EPUB для Kindle» с упором на **чистку русской типографики** и **Kindle-заточку** (всплывающие сноски, безопасный CSS). Он портативный (один `.exe`, без установки) и показывает каждую правку с возможностью отката. См. таблицу ниже.
+Calibre — большой комбайн-библиотека. litagent — узкий инструмент под сценарий «FB2/EPUB → хороший EPUB для Kindle» с упором на **чистку русской типографики** и **Kindle-заточку** (всплывающие сноски, безопасный CSS). Он портативный (один `.exe`, без установки) и показывает каждую правку с возможностью отката. См. таблицу ниже.
 
 **Работает офлайн?**
 Да, полностью. Ничего не загружается в сеть, файлы не покидают компьютер. Подходит для личной конвертации своих/легальных книг.
@@ -56,8 +57,11 @@ Calibre — большой комбайн-библиотека. litagent — у�
 **Это безопасно? Антивирус/SmartScreen ругается.**
 Бинарь не подписан сертификатом (платная история), поэтому SmartScreen показывает предупреждение, а антивирусы иногда дают ложные срабатывания. Исходный код открыт — при сомнениях соберите `.exe` сами (см. [Сборка](#сборка)).
 
-**Поддерживаются ли английские книги и другие форматы (EPUB/TXT/DOCX)?**
-Сейчас вход — **FB2**, а движок типографики настроен на **русский** текст. Поддержка английского и других входных форматов — в планах, но пока не реализована.
+**Поддерживаются ли английские книги и другие форматы (TXT/DOCX)?**
+Сейчас вход — **FB2 и EPUB**, а движок типографики настроен на **русский** текст. Поддержка английского и других входных форматов (TXT/DOCX) — в планах, но пока не реализована.
+
+**Что с DRM-защищёнными EPUB?**
+EPUB с DRM не поддерживаются — приложение выдаст ошибку "файл защищён DRM". Работать можно только с легально приобретёнными книгами без защиты.
 
 ---
 
@@ -65,21 +69,23 @@ Calibre — большой комбайн-библиотека. litagent — у�
 
 | | **litagent** | **Calibre** |
 |---|---|---|
-| Фокус | FB2 → EPUB для Kindle | универсальная библиотека/конвертер |
+| Фокус | FB2/EPUB → EPUB для Kindle | универсальная библиотека/конвертер |
 | Чистка русской типографики | ✅ ядро продукта, правила с диффом | ⚠️ базовая, без явного контроля |
 | Kindle-заточка (всплывающие сноски, safe CSS) | ✅ | частично |
 | Видно каждую правку / можно откатить | ✅ | ❌ |
+| Редактирование EPUB метаданных | ✅ | ✅ |
+| Генерация обложки с настройками | ✅ (с/без текста) | ❌ |
 | Установка | не нужна, портативный `.exe` | инсталлятор |
 | Офлайн | ✅ | ✅ |
-| Форматов на входе | FB2 (пока) | много |
+| Форматов на входе | FB2, EPUB | много |
 
-Коротко: нужен один аккуратный EPUB из FB2 под Kindle с чистой типографикой — litagent; нужна библиотека и конвертация десятков форматов — Calibre.
+Коротко: нужен один аккуратный EPUB из FB2/EPUB под Kindle с чистой типографикой — litagent; нужна библиотека и конвертация десятков форматов — Calibre.
 
 ---
 
 ## Как пользоваться
 
-1. Запустите `litagent.exe` и нажмите **«Открыть FB2…»**.
+1. Запустите `litagent.exe` и нажмите **«Открыть FB2/EPUB…»**.
 2. Книга разбирается, под шапкой появляется сводка (название, автор, язык, число глав, количество найденных правок). Дальше работайте по вкладкам (см. таблицу ниже).
 3. Когда результат устраивает — нажмите **«Собрать EPUB…»** и выберите, куда сохранить.
 
@@ -98,7 +104,8 @@ Calibre — большой комбайн-библиотека. litagent — у�
 
 На вкладке **«Обложка»**:
 
-- **Сгенерировать** — берёт случайный фон и рисует по центру верхней половины белую плашку с названием книги и автором (серифный шрифт Georgia). Сразу помечает обложку к сборке.
+- **Добавить название на обложку** — галочка, рисовать ли плашку с названием книги и автором на сгенерированной обложке. Снимите, чтобы использовать только фон.
+- **Сгенерировать** — берёт случайный фон и (если галочка включена) рисует по центру верхней половины белую плашку с названием книги и автором (серифный шрифт Georgia). Сразу помечает обложку к сборке.
 - **Другой шаблон** — выбирает другой случайный фон.
 - **Использовать в EPUB** — галочка, подставлять ли сгенерированную обложку при сборке.
 
@@ -124,7 +131,7 @@ WebView2 на Windows 11 уже встроен; на «чистых» систе
 
 ```bash
 # 1. установить Wails CLI (один раз)
-go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1
 
 # 2. собрать приложение
 wails build
@@ -150,13 +157,13 @@ litagent-cli книга.fb2 [книга.epub]
 <details>
 <summary><b>🇬🇧 In English</b></summary>
 
-### litagent — FB2 to EPUB converter for Kindle
+### litagent — FB2/EPUB to EPUB converter and editor for Kindle
 
-**litagent** turns FB2 e-books into clean **EPUB3** files ready for Kindle, and fixes typography along the way. It's a portable, offline desktop app for Windows (Go core + Svelte UI, built with [Wails](https://wails.io)) — no cloud, no install, no signup.
+**litagent** turns FB2 e-books into clean **EPUB3** files ready for Kindle, edits EPUB metadata and covers, and fixes typography along the way. It's a portable, offline desktop app for Windows (Go core + Svelte UI, built with [Wails](https://wails.io)) — no cloud, no install, no signup.
 
 Why: FB2 is the dominant Russian-language e-book format, but Kindle can't read it (*Send to Kindle* wants EPUB). FB2 files — especially OCR'd ones — carry typographic noise (double spaces, hyphens instead of dashes, straight quotes, broken hyphenation). litagent cleans the text and builds a tidy EPUB3 with working navigation, Kindle pop-up footnotes, a Kindle-safe CSS, and an optional generated cover. Every edit is grouped by rule and can be toggled off — nothing is applied blindly.
 
-**Note:** input is currently **FB2**, and the typography engine targets **Russian** text. English and additional input formats (EPUB/TXT/DOCX) are on the roadmap but not yet implemented.
+**Note:** input formats are **FB2 and EPUB**, and the typography engine targets **Russian** text. English and additional input formats (TXT/DOCX) are on the roadmap but not yet implemented. DRM-protected EPUBs are not supported.
 
 **Download:** grab `litagent.exe` from the [Releases page](https://github.com/cherlx/litagent/releases/latest), unzip, and run. The binary is unsigned, so Windows SmartScreen may warn — click **"More info" → "Run anyway"**. Or build it yourself (see *Сборка* above).
 

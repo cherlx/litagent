@@ -22,9 +22,10 @@ import (
 
 // Options carries the per-book inputs plus the (defaulted) visual config.
 type Options struct {
-	Title  string
-	Author string
-	Cfg    Config
+	Title        string
+	Author       string
+	Cfg          Config
+	PlateEnabled bool // draw the title/author plate (default true when false)
 }
 
 // Generate composes a cover from the template image at templatePath and returns
@@ -57,8 +58,10 @@ func Generate(templatePath string, opts Options) ([]byte, string, error) {
 	canvas := image.NewRGBA(image.Rect(0, 0, cfg.Width, cfg.Height))
 	drawCover(canvas, src)
 
-	if err := drawPlate(canvas, cfg, opts.Title, opts.Author); err != nil {
-		return nil, "", err
+	if opts.PlateEnabled {
+		if err := drawPlate(canvas, cfg, opts.Title, opts.Author); err != nil {
+			return nil, "", err
+		}
 	}
 
 	var buf bytes.Buffer

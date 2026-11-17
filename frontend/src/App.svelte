@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Open, Reload, Export, PreviewInfo, PreviewPage, SearchPreview, CoverInfo, GenerateCover, ApplyCover, ClearCover, GetMetadata, SetMetadata, CleanTitleTags, GetHyphenation, SetHyphenation, Version } from "../wailsjs/go/main/App";
+  import { Open, Reload, Export, PreviewInfo, PreviewPage, SearchPreview, CoverInfo, GenerateCover, ApplyCover, ClearCover, GetMetadata, SetMetadata, CleanTitleTags, GetHyphenation, SetHyphenation, GetCoverPlate, SetCoverPlate, Version } from "../wailsjs/go/main/App";
   import { main } from "../wailsjs/go/models";
   import { onMount } from "svelte";
 
@@ -24,6 +24,7 @@
 
   let coverInfo: main.CoverInfoView | null = null;
   let genCoverUri = "";
+  let plateEnabled = true;
 
   let meta: main.MetaEdit | null = null;
   let allowHyphenation = false;
@@ -88,6 +89,7 @@
     view = "cover";
     try {
       coverInfo = await CoverInfo();
+      plateEnabled = coverInfo.plateEnabled;
     } catch (e) {
       errorMsg = String(e);
     }
@@ -114,6 +116,17 @@
       if (coverInfo?.applied) await ClearCover();
       else await ApplyCover();
       coverInfo = await CoverInfo();
+    } catch (e) {
+      errorMsg = String(e);
+    }
+  }
+
+  async function togglePlate() {
+    errorMsg = "";
+    statusMsg = "";
+    try {
+      await SetCoverPlate(plateEnabled);
+      statusMsg = "Настройка сохранена";
     } catch (e) {
       errorMsg = String(e);
     }
@@ -288,8 +301,8 @@
 
 <header>
   <div class="toolbar">
-    <div class="brand">litagent{#if appVersion} <span class="ver">{appVersion}</span>{/if}</div>
-    <button on:click={openFile} disabled={loading}>Открыть FB2…</button>
+    <div class="brand">litagent {#if appVersion}<span class="ver">{appVersion}</span>{/if}</div>
+    <button on:click={openFile} disabled={loading}>Открыть FB2/EPUB…</button>
     <button on:click={exportEpub} disabled={loading || !result}>Собрать EPUB…</button>
     {#if result}
       <span class="tabs">
@@ -475,6 +488,10 @@
     {:else if view === "cover"}
       <section class="cover-tab">
         <div class="cover-bar">
+          <label class="apply-toggle" title="Добавить название книги и автора на обложку">
+            <input type="checkbox" bind:checked={plateEnabled} on:change={togglePlate} />
+            Добавить название на обложку
+          </label>
           <button on:click={() => generateCover(false)} disabled={loading}>Сгенерировать</button>
           <button on:click={() => generateCover(true)} disabled={loading || !genCoverUri}>Другой шаблон</button>
           {#if genCoverUri}
