@@ -14,6 +14,8 @@ export function Export():Promise<string>;
 
 export function GenerateCover(arg1:boolean):Promise<string>;
 
+export function GetCoverPlate():Promise<boolean>;
+
 export function GetHyphenation():Promise<boolean>;
 
 export function GetMetadata():Promise<main.MetaEdit>;
@@ -27,6 +29,8 @@ export function PreviewPage(arg1:number):Promise<main.PreviewPageView>;
 export function Reload(arg1:Array<string>):Promise<main.LoadResult>;
 
 export function SearchPreview(arg1:string):Promise<main.PreviewSearchResult>;
+
+export function SetCoverPlate(arg1:boolean):Promise<void>;
 
 export function SetHyphenation(arg1:boolean):Promise<void>;
 

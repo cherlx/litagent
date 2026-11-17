@@ -75,7 +75,7 @@ func TestGenerate(t *testing.T) {
 	const tw, th = 800, 1200
 	writePNG(t, tpl, tw, th, color.RGBA{40, 60, 90, 255}) // dark blue background
 
-	data, ct, err := Generate(tpl, Options{Title: "Волоколамское шоссе", Author: "Александр Бек"})
+	data, ct, err := Generate(tpl, Options{Title: "Волоколамское шоссе", Author: "Александр Бек", PlateEnabled: true})
 	if err != nil {
 		t.Fatal(err)
 	}
